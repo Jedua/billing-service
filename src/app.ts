@@ -1,7 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import sequelize from './config/database';
-import { initModels } from './models'; // <--- aquí importas tu nuevo init
 
 dotenv.config();
 
@@ -18,5 +17,7 @@ sequelize.authenticate()
   .then(() => console.log('✅ Base de datos sincronizada'))
   .catch(err => console.error('❌ Error al conectar o sincronizar DB:', err));
 
+  console.log('Conectado en el puerto ', PORT);
+  
 
 export default app;
