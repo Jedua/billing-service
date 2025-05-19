@@ -1,4 +1,5 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
+import * as bcrypt from 'bcrypt';
 
 export class User extends Model {
   public id!: number;
@@ -43,6 +44,20 @@ export const initUserModel = (sequelize: Sequelize) => {
       sequelize,
       tableName: 'users',
       modelName: 'User',
+      hooks: {
+        // Antes de crear: hashea password
+        beforeCreate: async (user: User) => {
+          const salt = await bcrypt.genSalt(10);
+          user.password = await bcrypt.hash(user.password, salt);
+        },
+        // Antes de actualizar: si cambió password, vuelve a hashear
+        beforeUpdate: async (user: User) => {
+          if (user.changed('password')) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+          }
+        },
+      },
     }
   );
 };
