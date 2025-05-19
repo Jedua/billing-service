@@ -4,6 +4,8 @@ import sequelize from './config/database';
 import authRoutes from './routes/auth.routes';
 import { authMiddleware } from './middlewares/auth.middleware';
 import { requireRoles } from './middlewares/role.middleware';
+import openstackVmsRoutes from './routes/openstack-vms.routes';
+import openstackVmsUptimeHistoryRoutes from './routes/openstack-vms-uptime-history.routes';
 
 
 dotenv.config();
@@ -15,15 +17,11 @@ app.use(express.json());
 
 // Rutas públicas
 app.use('/api/auth', authRoutes);
-
+app.use('/api/openstack/vms', openstackVmsRoutes);
+app.use('/api/openstack/vms', openstackVmsUptimeHistoryRoutes);
 // app.use('/api/billing', authMiddleware, billingRoutes);
 
-// Solo admin:
-// app.get('/api/admin', authMiddleware, requireRole('admin'), (req, res) => {
-//   res.json({ message: 'Solo admin puede ver esto' });
-// });
-
-// Admin:
+// Admin
 app.get('/api/reports', authMiddleware, requireRoles(['admin', 'superuser']), (req, res) => {
   res.json({ message: 'Admins o Superusers pueden ver esto' });
 });
