@@ -1,35 +1,31 @@
-import axios from 'axios';
-import dotenv from 'dotenv';
+import { Customer } from '../models/customer.model';
 
-dotenv.config();
+interface FiscalData {
+  name: string;
+  taxId: string;
+  address?: string;
+  email: string;
+  phone?: string;
+  userId: number;
+}
 
-const METRIC_API = process.env.METRIC_API || 'http://localhost:8041';
+export async function createCustomerFiscalData(data: FiscalData) {
+  // Verifica que no exista un cliente con ese taxId para ese usuario
+  const exists = await Customer.findOne({
+    where: { userId: data.userId, taxId: data.taxId }
+  });
+  if (exists) throw new Error('Customer with this taxId already exists for this user.');
 
-export class BillingService {
-  private token: string;
+  const customer = await Customer.create({
+    ...data,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return customer;
+}
 
-  constructor(token: string) {
-    this.token = token;
-  }
-
-  async getCpuUsage(instanceId: string): Promise<any> {
-    try {
-      const response = await axios.get(`${METRIC_API}/v1/resource/${instanceId}/metric/cpu`, {
-        headers: {
-          'X-Auth-Token': this.token
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching CPU usage:', error);
-      throw new Error('Error fetching CPU usage');
-    }
-  }
-
-  async calculateBilling(instanceId: string): Promise<number> {
-    const cpuData = await this.getCpuUsage(instanceId);
-    const usage = cpuData?.measures?.reduce((acc: number, entry: any) => acc + entry[2], 0) || 0;
-    const costPerCpuUnit = 0.05; // Example cost
-    return usage * costPerCpuUnit;
-  }
+export async function getCustomerFiscalDataByUser(userId: number) {
+  return await Customer.findAll({
+    attributes: ['id', 'name', 'taxId', 'address', 'email', 'phone', 'createdAt', 'updatedAt']
+  });
 }

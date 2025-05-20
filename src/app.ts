@@ -6,6 +6,7 @@ import { authMiddleware } from './middlewares/auth.middleware';
 import { requireRoles } from './middlewares/role.middleware';
 import openstackVmsRoutes from './routes/openstack-vms.routes';
 import openstackVmsUptimeHistoryRoutes from './routes/openstack-vms-uptime-history.routes';
+import billingRoutes from './routes/billing.routes';
 
 
 dotenv.config();
@@ -19,6 +20,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/openstack/vms', openstackVmsRoutes);
 app.use('/api/openstack/vms', openstackVmsUptimeHistoryRoutes);
+
+app.use('/api/billing', billingRoutes);
 // app.use('/api/billing', authMiddleware, billingRoutes);
 
 // Admin
