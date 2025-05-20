@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 
 export class User extends Model {
   public id!: number;
+  public virwocloudUserId?: number;
   public name!: string;
   public email!: string;
   public password!: string;
@@ -18,6 +19,12 @@ export const initUserModel = (sequelize: Sequelize) => {
         type: DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
+      },
+      virwocloudUserId: { 
+        type: DataTypes.INTEGER.UNSIGNED, 
+        allowNull: true,
+        unique: true,
+        comment: 'ID de usuario en virwocloud' 
       },
       name: {
         type: DataTypes.STRING(100),
