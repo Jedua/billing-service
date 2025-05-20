@@ -1,35 +1,70 @@
-import axios from 'axios';
-import dotenv from 'dotenv';
+import { Customer } from '../models/customer.model';
+import { InvoiceItem } from '../models/invoice-item.model';
+import { Invoice } from '../models/invoice.model';
 
-dotenv.config();
+interface FiscalData {
+  name: string;
+  taxId: string;
+  address?: string;
+  email: string;
+  phone?: string;
+  userId: number;
+}
 
-const METRIC_API = process.env.METRIC_API || 'http://localhost:8041';
+export async function createCustomerFiscalData(data: FiscalData) {
+  // Verifica que no exista un cliente con ese taxId para ese usuario
+  const exists = await Customer.findOne({
+    where: { userId: data.userId, taxId: data.taxId }
+  });
+  if (exists) throw new Error('Customer with this taxId already exists for this user.');
 
-export class BillingService {
-  private token: string;
+  const customer = await Customer.create({
+    ...data,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return customer;
+}
 
-  constructor(token: string) {
-    this.token = token;
-  }
+export async function getCustomerFiscalDataByUser(userId: number) {
+  return await Customer.findAll({
+    attributes: ['id', 'name', 'taxId', 'address', 'email', 'phone', 'createdAt', 'updatedAt']
+  });
+}
 
-  async getCpuUsage(instanceId: string): Promise<any> {
-    try {
-      const response = await axios.get(`${METRIC_API}/v1/resource/${instanceId}/metric/cpu`, {
-        headers: {
-          'X-Auth-Token': this.token
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching CPU usage:', error);
-      throw new Error('Error fetching CPU usage');
+// Calcula total de factura sumando los items
+const calculateInvoiceTotal = (items: Array<{ quantity: number, unitPrice: number }>) => {
+  return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+};
+
+export async function createInvoiceWithItems({ userId, customerId, items }: {
+  userId: number;
+  customerId: number;
+  items: Array<{ productId: number, quantity: number, unitPrice: number }>;
+}) {
+  return await Invoice.sequelize!.transaction(async (t) => {
+    // Calcula total de la factura
+    const total = calculateInvoiceTotal(items);
+
+    // Crea la factura
+    const invoice = await Invoice.create({
+      userId,
+      customerId,
+      total,
+      status: 'draft'
+    }, { transaction: t });
+
+    // Crea los items
+    for (const item of items) {
+      await InvoiceItem.create({
+        invoiceId: invoice.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.quantity * item.unitPrice
+      }, { transaction: t });
     }
-  }
 
-  async calculateBilling(instanceId: string): Promise<number> {
-    const cpuData = await this.getCpuUsage(instanceId);
-    const usage = cpuData?.measures?.reduce((acc: number, entry: any) => acc + entry[2], 0) || 0;
-    const costPerCpuUnit = 0.05; // Example cost
-    return usage * costPerCpuUnit;
-  }
+    return invoice;
+  });
 }
