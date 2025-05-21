@@ -8,6 +8,7 @@ export class Customer extends Model {
     public taxId!: string; // RFC
     public address?: string;
     public phone?: string;
+    public facturapiCustomerId?: string;
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 }
@@ -53,6 +54,11 @@ export const initCustomerModel = (sequelize: Sequelize) => {
             phone: {
                 type: DataTypes.STRING(20),
                 allowNull: true,
+            },
+            facturapiCustomerId: {
+                type: DataTypes.STRING(40),
+                allowNull: true,
+                comment: 'ID del cliente en Facturapi'
             },
         },
         {
