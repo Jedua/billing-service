@@ -1,4 +1,5 @@
 import Facturapi from 'facturapi';
+
 const facturapi = new Facturapi(process.env.FACTURAPI_KEY_TEST as string);
 
 export const validateRfc = async (rfc: string) => {
