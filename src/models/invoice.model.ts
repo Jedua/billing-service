@@ -1,17 +1,35 @@
-import { DataTypes, Model, Sequelize } from 'sequelize';
+import { Model, DataTypes, Sequelize, Optional } from 'sequelize';
 
-export class Invoice extends Model {
+export interface InvoiceAttributes {
+  id: number;
+  userId: number;
+  customerId: number;
+  externalId?: string | null;
+  status: string;
+  total: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InvoiceCreationAttributes
+  extends Optional<InvoiceAttributes, 'id' | 'externalId' | 'createdAt' | 'updatedAt'> {}
+
+export class Invoice
+  extends Model<InvoiceAttributes, InvoiceCreationAttributes>
+  implements InvoiceAttributes {
   public id!: number;
   public userId!: number;
   public customerId!: number;
-  public externalId?: string; // ID de FacturAPI
+  public externalId?: string | null;
   public status!: string;
   public total!: number;
-  public createdAt!: Date;
-  public updatedAt!: Date;
+
+  // timestamps
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 }
 
-export const initInvoiceModel = (sequelize: Sequelize) => {
+export function initInvoiceModel(sequelize: Sequelize): typeof Invoice {
   Invoice.init(
     {
       id: {
@@ -22,10 +40,18 @@ export const initInvoiceModel = (sequelize: Sequelize) => {
       userId: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
+        comment: 'ID local de usuario que emite',
+        references: { model: 'users', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE',
       },
       customerId: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
+        comment: 'Cliente facturado',
+        references: { model: 'customers', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE',
       },
       externalId: {
         type: DataTypes.STRING,
@@ -42,11 +68,16 @@ export const initInvoiceModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: 0.0,
       },
+      createdAt: '',
+      updatedAt: ''
     },
     {
       sequelize,
       tableName: 'invoices',
       modelName: 'Invoice',
+      timestamps: true,
     }
   );
-};
+
+  return Invoice;
+}

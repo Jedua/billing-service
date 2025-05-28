@@ -9,6 +9,8 @@ import openstackVmsUptimeHistoryRoutes from './routes/openstack-vms-uptime-histo
 import billingRoutes from './routes/billing.routes';
 import facturapiRoutes from './routes/facturapi.routes';
 import rfcRoutes from './routes/rfc.routes';
+import Invoices from 'facturapi/dist/resources/invoices';
+import invoiceRoutes from './routes/invoice.routes';
 
 
 dotenv.config();
@@ -25,6 +27,7 @@ app.use('/api/openstack/vms', openstackVmsUptimeHistoryRoutes);
 app.use('/api/facturapi', facturapiRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/rfc', rfcRoutes);
+app.use('/api/invoice', invoiceRoutes)
 // app.use('/api/billing', authMiddleware, billingRoutes);
 
 // Admin

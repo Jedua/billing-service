@@ -1,70 +1,90 @@
+// src/services/billing.service.ts
 import { Customer } from '../models/customer.model';
-import { InvoiceItem } from '../models/invoice-item.model';
-import { Invoice } from '../models/invoice.model';
 
-interface FiscalData {
-  name: string;
-  taxId: string;
-  address?: string;
-  email: string;
-  phone?: string;
-  userId: number;
+export interface CreateCustomerDto {
+  virwoUserId: number;  // el ID del usuario en VirwoCloud
+  name:        string;
+  email:       string;
+  taxId:       string;
+  address?:    string;
+  phone?:      string;
 }
 
-export async function createCustomerFiscalData(data: FiscalData) {
-  // Verifica que no exista un cliente con ese taxId para ese usuario
-  const exists = await Customer.findOne({
-    where: { userId: data.userId, taxId: data.taxId }
-  });
-  if (exists) throw new Error('Customer with this taxId already exists for this user.');
+export interface UpdateCustomerDto {
+  name?:     string;
+  email?:    string;
+  taxId?:    string;
+  address?:  string;
+  phone?:    string;
+}
 
-  const customer = await Customer.create({
-    ...data,
-    createdAt: new Date(),
-    updatedAt: new Date()
+/**
+ * 1) Create a brand-new Customer (error if one exists).
+ */
+export async function createCustomer(dto: CreateCustomerDto) {
+  // look up by virwoUserId, not userId
+  const existing = await Customer.findOne({
+    where: { virwoUserId: dto.virwoUserId }
   });
+  if (existing) {
+    throw new Error(`Customer for virwoUserId=${dto.virwoUserId} already exists`);
+  }
+
+  return Customer.create({
+    virwoUserId:        dto.virwoUserId,
+    name:               dto.name,
+    email:              dto.email,
+    taxId:              dto.taxId,
+    address:            dto.address ?? undefined,
+    phone:              dto.phone   ?? undefined,
+    facturapiCustomerId: undefined 
+  });
+}
+
+/**
+ * 2) Update an existing Customer by virwoUserId.
+ */
+export async function updateCustomer(
+  virwoUserId: number,
+  dto: UpdateCustomerDto
+) {
+  const customer = await Customer.findOne({
+    where: { virwoUserId }
+  });
+  if (!customer) {
+    throw new Error(`No customer found for virwoUserId=${virwoUserId}`);
+  }
+
+  // build an updates object
+  const updates: Partial<{
+    name: string;
+    email: string;
+    taxId: string;
+    address: string;
+    phone: string;
+    updatedAt: Date;
+  }> = {};
+
+  if (dto.name    !== undefined) updates.name    = dto.name;
+  if (dto.email   !== undefined) updates.email   = dto.email;
+  if (dto.taxId   !== undefined) updates.taxId   = dto.taxId;
+  if (dto.address !== undefined) updates.address = dto.address;
+  if (dto.phone   !== undefined) updates.phone   = dto.phone;
+
+  if (Object.keys(updates).length) {
+    updates.updatedAt = new Date();
+    await customer.update(updates);
+  }
+
   return customer;
 }
 
-export async function getCustomerFiscalDataByUser(userId: number) {
-  return await Customer.findAll({
-    attributes: ['id', 'name', 'taxId', 'address', 'email', 'phone', 'createdAt', 'updatedAt']
+export async function getCustomerByVirwoId(
+  virwoUserId: number
+): Promise<Customer | null> {
+  // Busca en la tabla customers por el campo virwoUserId
+  const customer = await Customer.findOne({
+    where: { virwoUserId }
   });
-}
-
-// Calcula total de factura sumando los items
-const calculateInvoiceTotal = (items: Array<{ quantity: number, unitPrice: number }>) => {
-  return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-};
-
-export async function createInvoiceWithItems({ userId, customerId, items }: {
-  userId: number;
-  customerId: number;
-  items: Array<{ productId: number, quantity: number, unitPrice: number }>;
-}) {
-  return await Invoice.sequelize!.transaction(async (t) => {
-    // Calcula total de la factura
-    const total = calculateInvoiceTotal(items);
-
-    // Crea la factura
-    const invoice = await Invoice.create({
-      userId,
-      customerId,
-      total,
-      status: 'draft'
-    }, { transaction: t });
-
-    // Crea los items
-    for (const item of items) {
-      await InvoiceItem.create({
-        invoiceId: invoice.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.quantity * item.unitPrice
-      }, { transaction: t });
-    }
-
-    return invoice;
-  });
+  return customer;  // puede ser null si no existe
 }
