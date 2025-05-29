@@ -20,9 +20,6 @@ export const initModels = (sequelize: Sequelize) => {
   Customer.hasMany(Product,  { foreignKey: 'customerId' });
   Product.belongsTo(Customer, { foreignKey: 'customerId' });
 
-  User.hasMany(Invoice,    { foreignKey: 'userId' });
-  Invoice.belongsTo(User,  { foreignKey: 'userId' });
-
   Customer.hasMany(Invoice,    { foreignKey: 'customerId' });
   Invoice.belongsTo(Customer,  { foreignKey: 'customerId' });
 

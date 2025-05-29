@@ -26,8 +26,9 @@ app.use('/api/openstack/vms', openstackVmsRoutes);
 app.use('/api/openstack/vms', openstackVmsUptimeHistoryRoutes);
 app.use('/api/facturapi', facturapiRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/billing', invoiceRoutes)
 app.use('/api/rfc', rfcRoutes);
-app.use('/api/invoice', invoiceRoutes)
+
 // app.use('/api/billing', authMiddleware, billingRoutes);
 
 // Admin

@@ -9,41 +9,30 @@ import {
 import { getCustomerByVirwoId } from '../services/billing.service';
 
 export async function handleListProductsByCustomer(req: Request, res: Response) {
-  const customerId = Number(req.params.customerId);
-  if (isNaN(customerId)) {
+  const virwoUserId = Number(req.params.virwoUserId);
+  if (isNaN(virwoUserId)) {
     return res.status(400).json({
       success: false,
-      message: 'customerId inválido'
+      message: 'virwoUserId inválido',
     });
   }
 
-  try {
-    // 1) Verificamos que exista el customer
-    const customer = await getCustomerByVirwoId(customerId);
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: `No existe customer con id=${customerId}`
-      });
-    }
-
-    // 2) Si existe, listamos productos
-    const products = await listProductsByCustomer(customerId);
-    return res.json({
-      success: true,
-      data: products
-    });
-  } catch (err: any) {
-    console.error('[ProductController] Error listando productos:', err);
-    return res.status(500).json({
+  // 1) buscamos al customer por virwoUserId
+  const customer = await getCustomerByVirwoId(virwoUserId);
+  if (!customer) {
+    return res.status(404).json({
       success: false,
-      message: 'Error interno al listar productos',
-      error: err.message
+      message: `No existe customer con virwoUserId=${virwoUserId}`,
     });
   }
+
+  // 2) con customer.id traemos sus productos
+  const products = await listProductsByCustomer(customer.id);
+  return res.json({
+    success: true,
+    data: products,
+  });
 }
-
-
 export async function handleCreateProduct(req: Request, res: Response) {
   try {
     const dto = req.body;
@@ -53,7 +42,6 @@ export async function handleCreateProduct(req: Request, res: Response) {
     res.status(400).json({ success: false, message: e.message });
   }
 }
-
 
 export async function handleUpdateProduct(req: Request, res: Response) {
   const productId = Number(req.params.productId);

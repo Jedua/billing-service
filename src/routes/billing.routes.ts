@@ -6,21 +6,17 @@ import { handleCreateProduct, handleGetProduct, handleListProductsByCustomer, ha
 
 const router = Router();
 
-// 1) Crear customer
+// Customer
 router.post('/customers', createCustomer);
-
-// 2) Actualizar customer por virwoUserId
 router.put('/customers/:virwoUserId', updateCustomer);
-
-// 3) obtener datos de facturacion.
 router.get('/customers/:virwoUserId', authMiddleware, getCustomerFiscalData)
 
 // Productos
 router.post('/products', handleCreateProduct);
-router.get('/products/customer/:customerId', handleListProductsByCustomer);
 router.get('/products/:id', handleGetProduct);
-router.put(
-  '/products/:productId',authMiddleware, handleUpdateProduct);
+router.put('/products/:productId',authMiddleware, handleUpdateProduct);
+// Listar productos por el virwoUserId
+router.get('/products/customer/:virwoUserId', authMiddleware, handleListProductsByCustomer);
 
 
 export default router;

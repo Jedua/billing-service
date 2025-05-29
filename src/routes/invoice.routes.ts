@@ -1,10 +1,21 @@
-// src/routes/invoice.routes.ts
 import { Router } from 'express';
-import { issueInvoice } from '../controllers/invoice.controller';
+import {
+  handleCreateInvoice,
+  handleGetInvoice,
+  handleIssueInvoice,
+  handleListInvoicesByCustomer,
+  handleUpdateInvoice
+} from '../controllers/invoice.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// POST /api/invoice/issue
-router.post('/issue', (req, res, next) => issueInvoice(req, res).catch(next));
+router.post('/invoices',                       authMiddleware, handleCreateInvoice);
+router.get('/invoices/:invoiceId',            authMiddleware, handleGetInvoice);
+router.get('/invoices/customer/:customerId',  authMiddleware, handleListInvoicesByCustomer);
+router.put('/invoices/:invoiceId',            authMiddleware, handleUpdateInvoice);
 
+
+// “issue”
+router.post('/invoices/issue', authMiddleware, handleIssueInvoice);
 export default router;

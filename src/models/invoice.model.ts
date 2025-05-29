@@ -1,8 +1,9 @@
-import { Model, DataTypes, Sequelize, Optional } from 'sequelize';
+// src/models/invoice.model.ts
+
+import { Model, DataTypes, Optional, Sequelize } from 'sequelize';
 
 export interface InvoiceAttributes {
   id: number;
-  userId: number;
   customerId: number;
   externalId?: string | null;
   status: string;
@@ -18,7 +19,6 @@ export class Invoice
   extends Model<InvoiceAttributes, InvoiceCreationAttributes>
   implements InvoiceAttributes {
   public id!: number;
-  public userId!: number;
   public customerId!: number;
   public externalId?: string | null;
   public status!: string;
@@ -37,26 +37,18 @@ export function initInvoiceModel(sequelize: Sequelize): typeof Invoice {
         autoIncrement: true,
         primaryKey: true,
       },
-      userId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        comment: 'ID local de usuario que emite',
-        references: { model: 'users', key: 'id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
-      },
       customerId: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
-        comment: 'Cliente facturado',
         references: { model: 'customers', key: 'id' },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
+        comment: 'Cliente facturado',
       },
       externalId: {
         type: DataTypes.STRING,
         allowNull: true,
-        comment: 'ID de factura en FacturAPI',
+        comment: 'ID en FacturAPI',
       },
       status: {
         type: DataTypes.STRING(50),
@@ -67,7 +59,8 @@ export function initInvoiceModel(sequelize: Sequelize): typeof Invoice {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0.0,
-      },
+      }
+      ,
       createdAt: '',
       updatedAt: ''
     },
@@ -75,7 +68,7 @@ export function initInvoiceModel(sequelize: Sequelize): typeof Invoice {
       sequelize,
       tableName: 'invoices',
       modelName: 'Invoice',
-      timestamps: true,
+      timestamps: true // Sequelize gestionará createdAt / updatedAt
     }
   );
 
