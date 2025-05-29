@@ -109,6 +109,12 @@ export const downloadInvoicePDF = async (req: Request, res: Response) => {
     }
 };
 
+export const createInvoiceInFacturapi = async (
+  invoiceData: FacturapiInvoiceData
+) => {
+  return facturapi.invoices.create(invoiceData);
+};
+
 export const createInvoice = async (invoiceData: FacturapiInvoiceData) => {
   return await facturapi.invoices.create(invoiceData);
 };

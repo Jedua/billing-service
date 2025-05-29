@@ -7,20 +7,23 @@ import { Product } from '../models/product.model';
 import { InvoiceLog } from '../models/invoice-log.model';
 import sequelize from '../config/database';
 
-// src/services/invoice.service.ts
+import dotenv from 'dotenv';
+dotenv.config();
 
+
+export const TAX_SYSTEM = Number(process.env.TAX_SYSTEM) || 601;
 export interface AddressDto {
-  internal_number: any;
-  exterior_number: any;
-  street: string;
-  exterior: string;
-  interior?: string;
-  neighborhood: string;
-  city: string;
-  municipality: string;
-  zip_code: string;
-  state: string;
-  country: string;  // ISO 3 letras, e.g. "MEX"
+    internal_number: any;
+    exterior_number: any;
+    street: string;
+    exterior: string;
+    interior?: string;
+    neighborhood: string;
+    city: string;
+    municipality: string;
+    zip_code: string;
+    state: string;
+    country: string;  // ISO 3 letras,  "MEX"
 }
 export interface CreateInvoicePayload {
     IdUser: number;
@@ -35,7 +38,8 @@ export interface CreateInvoicePayload {
         name: string;
         email: string;
         uso_cfdi: string;
-         address: AddressDto;  
+        tax_system: string;
+        address: AddressDto;
         phone?: string;
     };
     EmailAlternativo?: string;
@@ -134,22 +138,22 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
         if (!customer.facturapiCustomerId) {
             // mapeo de tu objeto Customer ➡️ payload para Facturapi
             const facturapiPayload = {
-                legal_name: customer.name,              // nombre o razón social
-                tax_id: customer.taxId,             // RFC
-                tax_system: payload.Customer.uso_cfdi,  // régimen fiscal (ej. "601")
+                legal_name: customer.name,
+                tax_id: customer.taxId,
+                tax_system: TAX_SYSTEM,
                 email: customer.email,
-                phone: payload.Customer.phone || undefined,  // debe ser número
-                default_invoice_use: payload.Customer.uso_cfdi,  // uso de CFDI para facturar
+                phone: payload.Customer.phone || undefined,
+                default_invoice_use: payload.Customer.uso_cfdi,
                 address: {
-                    street: payload.Customer.address.street,         // "Blvd. Atardecer"
-                    exterior: payload.Customer.address.exterior_number, // 142
-                    interior: payload.Customer.address.internal_number, // 4
-                    neighborhood: payload.Customer.address.neighborhood,    // "Centro"
-                    city: payload.Customer.address.city,            // "Huatabampo"
-                    municipality: payload.Customer.address.city,            // o payload.Customer.address.municipality
-                    zip: payload.Customer.address.zip_code,    // 86500
-                    state: payload.Customer.address.state,           // "Sonora"
-                    country: payload.Customer.address.country,         // "MEX"
+                    street: payload.Customer.address.street,
+                    exterior: payload.Customer.address.exterior_number,
+                    interior: payload.Customer.address.internal_number,
+                    neighborhood: payload.Customer.address.neighborhood,
+                    city: payload.Customer.address.city,
+                    municipality: payload.Customer.address.city,
+                    zip: payload.Customer.address.zip_code,
+                    state: payload.Customer.address.state,
+                    country: payload.Customer.address.country,
                 }
             };
 
@@ -162,32 +166,43 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
         } else {
             console.log(`[IssueInvoice] Cliente ya sincronizado: ${customer.facturapiCustomerId}`);
         }
-        // // — 3) asegurar productos en tu catálogo local —
-        // for (const item of payload.Items) {
-        //     let prod = await Product.findOne({
-        //         where: {
-        //             customerId: customer.id,
-        //             name: item.product.product_key
-        //         },
-        //         transaction: tx
-        //     });
-        //     if (!prod) {
-        //         prod = await Product.create({
-        //             customerId: customer.id,
-        //             name: item.product.product_key,
-        //             description: item.product.description,
-        //             price: item.product.price,
-        //             taxRate: 0
-        //         }, { transaction: tx });
-        //         console.log(`[IssueInvoice] Producto creado -> ${prod.name} para customerId=${customer.id}`);
-        //     } else {
-        //         console.log(`[IssueInvoice] Producto existente -> ${prod.name} para customerId=${customer.id}`);
-        //     }
-        // }
+        
+        // — 3) asegurar productos en tu catálogo local —
+        for (const item of payload.Items) {
+            let prod = await Product.findOne({
+                where: {
+                    customerId: customer.id,
+                    name: item.product.product_key
+                },
+                transaction: tx
+            });
+            if (!prod) {
+                prod = await Product.create({
+                    customerId: customer.id,
+                    name: item.product.product_key,
+                    description: item.product.description,
+                    price: item.product.price,
+                    taxRate: 0
+                }, { transaction: tx });
+                console.log(`[IssueInvoice] Producto creado -> ${prod.name} para customerId=${customer.id}`);
+            } else {
+                console.log(`[IssueInvoice] Producto existente -> ${prod.name} para customerId=${customer.id}`);
+            }
+        }
+        console.log('paso 1,2 y 3 completados: ', customer.id);
+        console.log('customer.facturapiCustomerId: ', customer.facturapiCustomerId);
 
-        // TODO: 4) — crear factura en Facturapi —
+        // — 4) Emitir factura en Facturapi usando los IDs de producto —
 
-        // TODO: 5) — guardar factura local —
+        
+        // // — 5) guardar factura local —
+        // const inv = await Invoice.create({
+        //     customerId: customer.id,
+        //     externalId: facInvoice.id,
+        //     status: facInvoice.status,
+        //     total: facInvoice.total
+        // }, { transaction: tx });
+        // console.log(`[IssueInvoice] Factura local creada id=${inv.id}, total=${inv.total}`);
 
         // TODO: 6) — guardar líneas —
 
