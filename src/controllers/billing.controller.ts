@@ -1,57 +1,74 @@
+// src/controllers/billing.controller.ts
 import { Request, Response } from 'express';
-import { createCustomerFiscalData, createInvoiceWithItems, getCustomerFiscalDataByUser } from '../services/billing.service';
+import * as billingService from '../services/billing.service';
+import { Customer } from '../models/customer.model';
+import { getCustomerByVirwoId } from '../services/billing.service';
 
-export async function saveCustomerFiscalData(req: Request, res: Response) {
+export async function createCustomer(req: Request, res: Response) {
   try {
-    const { name, taxId, address, email, phone } = req.body;
-    if (!name || !taxId || !email) {
-      return res.status(400).json({ message: 'name, taxId and email are required.' });
-    }
-
-    // El userId viene del middleware de autenticación (token)
-    const userId = (req as any).user.id;
-    const customer = await createCustomerFiscalData({
-      name,
-      taxId,
-      address,
-      email,
-      phone,
-      userId
-    });
-
-    return res.status(201).json({
-      id: customer.id,
+    const dto = req.body as billingService.CreateCustomerDto;
+    const customer = await billingService.createCustomer(dto);
+    res.status(201).json({
+      id:   customer.id,
+      virwoUserId: customer.virwoUserId,
       name: customer.name,
+      email: customer.email,
       taxId: customer.taxId,
       address: customer.address,
-      email: customer.email,
       phone: customer.phone
     });
   } catch (err: any) {
-    return res.status(500).json({ message: err.message });
+    res.status(400).json({ message: err.message });
   }
 }
 
-
-export async function getCustomerFiscalData(req: Request, res: Response) {
+export async function updateCustomer(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.id;
-    const customers = await getCustomerFiscalDataByUser(userId);
-    return res.json(customers);
+    const virwoUserId = Number(req.params.virwoUserId);
+    const dto = req.body as billingService.UpdateCustomerDto;
+    const customer = await billingService.updateCustomer(virwoUserId, dto);
+    res.json({
+      id:   customer.id,
+      virwoUserId: customer.virwoUserId,
+      name: customer.name,
+      email: customer.email,
+      taxId: customer.taxId,
+      address: customer.address,
+      phone: customer.phone
+    });
   } catch (err: any) {
-    return res.status(500).json({ message: err.message });
+    res.status(400).json({ message: err.message });
   }
 }
 
-export const createInvoice = async (req: Request, res: Response) => {
+export async function getCustomerFiscalData(
+  req: Request,
+  res: Response
+) {
   try {
-    const { userId, customerId, items } = req.body;
-    if (!userId || !customerId || !items || !Array.isArray(items)) {
-      return res.status(400).json({ message: 'Missing data' });
+    const virwoId = Number(req.params.virwoUserId);
+    if (isNaN(virwoId)) {
+      return res.status(400).json({ message: 'virwoUserId inválido' });
     }
-    const invoice = await createInvoiceWithItems({ userId, customerId, items });
-    res.status(201).json(invoice);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating invoice', error });
+
+    const customer = await getCustomerByVirwoId(virwoId);
+    if (!customer) {
+      return res.status(404).json({ message: 'Cliente no encontrado' });
+    }
+
+    // Devolvemos sólo los campos que queramos exponer
+    return res.json({
+      id:                 customer.id,
+      virwoUserId:        customer.virwoUserId,
+      name:               customer.name,
+      email:              customer.email,
+      taxId:              customer.taxId,
+      address:            customer.address,
+      phone:              customer.phone,
+      facturapiCustomerId: customer.facturapiCustomerId
+    });
+  } catch (err: any) {
+    console.error('ERROR getCustomerFiscalData:', err);
+    return res.status(500).json({ message: 'Error del servidor' });
   }
-};
+}

@@ -7,6 +7,10 @@ import { requireRoles } from './middlewares/role.middleware';
 import openstackVmsRoutes from './routes/openstack-vms.routes';
 import openstackVmsUptimeHistoryRoutes from './routes/openstack-vms-uptime-history.routes';
 import billingRoutes from './routes/billing.routes';
+import facturapiRoutes from './routes/facturapi.routes';
+import rfcRoutes from './routes/rfc.routes';
+import Invoices from 'facturapi/dist/resources/invoices';
+import invoiceRoutes from './routes/invoice.routes';
 
 
 dotenv.config();
@@ -20,8 +24,11 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/openstack/vms', openstackVmsRoutes);
 app.use('/api/openstack/vms', openstackVmsUptimeHistoryRoutes);
-
+app.use('/api/facturapi', facturapiRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/billing', invoiceRoutes)
+app.use('/api/rfc', rfcRoutes);
+
 // app.use('/api/billing', authMiddleware, billingRoutes);
 
 // Admin
