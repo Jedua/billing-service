@@ -24,7 +24,7 @@ export interface FacturapiCustomerData {
 }
 
 export interface FacturapiInvoiceItem {
-  product: string;            // Nombre/ID del producto
+  product: string;
   quantity: number;
   unit_price: number;
   product_key?: string;       // Clave SAT (ejemplo: "81112100")

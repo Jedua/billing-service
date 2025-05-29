@@ -6,6 +6,11 @@ import { InvoiceItem } from '../models/invoice-item.model';
 import { Product } from '../models/product.model';
 import { InvoiceLog } from '../models/invoice-log.model';
 import sequelize from '../config/database';
+import {
+    syncCustomer,
+    createInvoice as facturapiCreateInvoice,
+    getInvoicePDF
+} from './facturapi.service';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -166,7 +171,7 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
         } else {
             console.log(`[IssueInvoice] Cliente ya sincronizado: ${customer.facturapiCustomerId}`);
         }
-        
+
         // — 3) asegurar productos en tu catálogo local —
         for (const item of payload.Items) {
             let prod = await Product.findOne({
@@ -192,26 +197,104 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
         console.log('paso 1,2 y 3 completados: ', customer.id);
         console.log('customer.facturapiCustomerId: ', customer.facturapiCustomerId);
 
-        // — 4) Emitir factura en Facturapi usando los IDs de producto —
+        // — 4) Emitir factura en Facturapi usando tu helper —  
+        const invoiceData = {
+            customer: customer.facturapiCustomerId!,
+            items: payload.Items.map(i => {
+                // Sanitizar clave de producto
+                let productKey = i.product.product_key.replace(/[^A-Za-z0-9]/g, '');
 
-        
-        // // — 5) guardar factura local —
-        // const inv = await Invoice.create({
-        //     customerId: customer.id,
-        //     externalId: facInvoice.id,
-        //     status: facInvoice.status,
-        //     total: facInvoice.total
-        // }, { transaction: tx });
-        // console.log(`[IssueInvoice] Factura local creada id=${inv.id}, total=${inv.total}`);
+                // Validar clave SAT (8 dígitos)
+                if (!/^\d{8}$/.test(productKey)) {
+                    productKey = "85121800"; // Clave SAT por defecto (servicios)
+                    console.warn(`Clave de producto inválida. Usando valor por defecto: ${productKey}`);
+                }
+
+                return {
+                    quantity: i.quantity,
+                    product: {  // Objeto product con todos los detalles
+                        product_key: productKey,
+                        description: i.product.description.substring(0, 250), // Máximo 250 caracteres
+                        price: i.product.price,
+                        tax_included: true, // Precio incluye impuestos
+                        taxes: [{ // Impuestos requeridos
+                            type: 'IVA',
+                            rate: 0, // Tasa 0%
+                            factor: 'Tasa'
+                        }]
+                    }
+                };
+            }),
+            payment_form: '03',
+            payment_method: 'PUE',
+            use: payload.Customer.uso_cfdi,
+            series: process.env.FACTURAPI_SERIES,
+            folio_number: Number(payload.InvoiceNumber.split('-')[1]),
+        };
+
+        // console.log('[IssueInvoice] Emisión Facturapi…', JSON.stringify(invoiceData, null, 2));
+        const facInvoice = await facturapi.invoices.create(invoiceData);
+        console.log('[IssueInvoice] Respuesta Facturapi…', JSON.stringify(facInvoice, null, 2));
+
+
+        // — 5) guardar factura local —
+        const inv = await Invoice.create({
+            customerId: customer.id,
+            externalId: facInvoice.id,
+            status: facInvoice.status,
+            total: facInvoice.total
+        }, { transaction: tx });
+        console.log(`[IssueInvoice] Factura local creada id=${inv.id}, total=${inv.total}`);
 
         // TODO: 6) — guardar líneas —
+        const lineItems: InvoiceItem[] = [];
+        for (const item of payload.Items) {
+            // localiza el producto
+            const prodLocal = await Product.findOne({
+                where: {
+                    customerId: customer.id,
+                    name: item.product.product_key.replace(/[^A-Za-z0-9]/g, '')
+                },
+                transaction: tx
+            });
+            if (!prodLocal) {
+                throw new Error(
+                    `No se encontró producto local para clave "${item.product.product_key}" en customerId=${customer.id}`
+                );
+            }
+            // inserta la línea
+            const line = await InvoiceItem.create({
+                invoiceId: inv.id,
+                productId: prodLocal.id,
+                quantity: item.quantity,
+                unitPrice: item.product.price,
+                total: item.quantity * item.product.price
+            }, { transaction: tx });
+            lineItems.push(line);
+        }
 
         // TODO: 7) — log para auditoría —
 
+        // Paso 7) log de auditoría
+        await InvoiceLog.create({
+            invoiceId: inv.id,
+            event: 'Factura emitida',
+            details: `Facturapi ID=${facInvoice.id}`
+        }, { transaction: tx });
+
         // TODO: 8) — enviar correo —
 
-        // TODO: 9) — devolver resultado al front —
+        const pdfBuffer = await getInvoicePDF(facInvoice.id);
+        await sendInvoiceEmail({
+            customerName: customer.name,
+            customerEmail: customer.email,
+            invoiceNumber: payload.InvoiceNumber,
+            ccEmail: payload.EmailAlternativo ||`eduardo.campuzano@virwo.com`, // opcional payload.EmailAlternativo
+            pdfBuffer
+        });
 
+        // TODO: 9) — devolver resultado al front —
+        return { success: true, invoiceId: inv.id };
     });
 
 }

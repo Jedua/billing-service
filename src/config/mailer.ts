@@ -1,3 +1,4 @@
+// src/config/mailer.ts
 import nodemailer, { SendMailOptions } from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -18,26 +19,44 @@ export const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendInvoiceEmail(
-  customer: { name: string; email: string },
-  payload: { InvoiceNumber: string; EmailAlternativo?: string }
-) {
-  // construimos un string[] filtrando posibles undefined
-  const toList = [customer.email, payload.EmailAlternativo]
-    .filter((e): e is string => !!e);
+export interface SendInvoiceEmailParams {
+  customerName: string;
+  customerEmail: string;
+  invoiceNumber: string;
+  ccEmail?: string;
+  pdfBuffer: Buffer;
+}
+
+/**
+ * Envía un correo con la factura PDF adjunta.
+ */
+export async function sendInvoiceEmail({
+  customerName,
+  customerEmail,
+  invoiceNumber,
+  ccEmail,
+  pdfBuffer
+}: SendInvoiceEmailParams) {
+  // construye la lista de destinatarios (to y cc)
+  const toList = [customerEmail];
+  const ccList = ccEmail ? [ccEmail] : [];
 
   const mailOpts: SendMailOptions = {
-    from:    process.env.MAIL_FROM!,   // con ! TypeScript sabe que no es undefined
-    to:      toList,                   // string[]
-    subject: `Tu factura ${payload.InvoiceNumber}`,
-    text:    `Hola ${customer.name},\n\nAdjunto tu factura ${payload.InvoiceNumber}.\n\nSaludos.`,
+    from:    process.env.MAIL_FROM!,   // e.g. '"Mi Empresa" <no-reply@empresa.com>'
+    to:      toList,
+    cc:      ccList,
+    subject: `Tu factura ${invoiceNumber}`,
+    text:    `Hola ${customerName},\n\nAdjunto encontrarás tu factura ${invoiceNumber}.\n\n¡Saludos!`,
     attachments: [
-      // aquí podrías adjuntar tu PDF / XML:
-      // { filename: `${payload.InvoiceNumber}.pdf`, path: '/tmp/abc.pdf' },
+      {
+        filename: `${invoiceNumber}.pdf`,
+        content:  pdfBuffer,
+        contentType: 'application/pdf'
+      }
     ]
   };
 
   const info = await transporter.sendMail(mailOpts);
-  console.log('Correo enviado:', info.messageId);
+  console.log(`Correo enviado a ${toList.join(', ')}${ccList.length ? ` (cc: ${ccList.join(', ')})` : ''}`, info.messageId);
   return info;
 }
