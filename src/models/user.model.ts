@@ -1,7 +1,9 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
+import * as bcrypt from 'bcrypt';
 
 export class User extends Model {
   public id!: number;
+  public virwocloudUserId?: number;
   public name!: string;
   public email!: string;
   public password!: string;
@@ -17,6 +19,12 @@ export const initUserModel = (sequelize: Sequelize) => {
         type: DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
+      },
+      virwocloudUserId: { 
+        type: DataTypes.INTEGER.UNSIGNED, 
+        allowNull: true,
+        unique: true,
+        comment: 'ID de usuario en virwocloud' 
       },
       name: {
         type: DataTypes.STRING(100),
@@ -43,6 +51,20 @@ export const initUserModel = (sequelize: Sequelize) => {
       sequelize,
       tableName: 'users',
       modelName: 'User',
+      hooks: {
+        // Antes de crear: hashea password
+        beforeCreate: async (user: User) => {
+          const salt = await bcrypt.genSalt(10);
+          user.password = await bcrypt.hash(user.password, salt);
+        },
+        // Antes de actualizar: si cambió password, vuelve a hashear
+        beforeUpdate: async (user: User) => {
+          if (user.changed('password')) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+          }
+        },
+      },
     }
   );
 };
