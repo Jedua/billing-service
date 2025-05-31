@@ -294,7 +294,7 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
         });
 
         // TODO: 9) — devolver resultado al front —
-        return { success: true, invoiceId: inv.id };
+        return { success: true, invoiceId: inv.id, ChargeIdOpenPay: payload.ChargeIdOpenPay, IdSubscription: payload.IdSuscription};
     });
 
 }

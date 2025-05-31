@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import sequelize from './config/database';
 import authRoutes from './routes/auth.routes';
@@ -17,6 +18,12 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+app.use(cors({
+  origin: 'http://localhost:4200', //peticiones del front
+  credentials: true 
+}));
+
 
 app.use(express.json());
 
@@ -44,5 +51,12 @@ sequelize.authenticate()
   })
   .catch(err => console.error('DB error:', err));
   
+
+  app._router.stack.forEach((r: any) => {
+  if (r.route && r.route.path) {
+    console.log(`${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`);
+  }
+});
+
 
 export default app;
