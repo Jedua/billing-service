@@ -1,5 +1,7 @@
 // src/services/billing.service.ts
 import { Customer } from '../models/customer.model';
+import * as facturapiService from './facturapi.service'; // Asegurate de importar correctamente
+import { FacturapiCustomerData } from './facturapi.service'; // Si tenés types definidos ahí
 
 export interface CreateCustomerDto {
   virwoUserId: number;  // el ID del usuario en VirwoCloud

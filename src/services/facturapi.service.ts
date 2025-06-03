@@ -142,3 +142,28 @@ export async function getInvoicePDF(id: string): Promise<Buffer> {
         pdfStream.on('error', reject);
     });
 }
+
+export async function updateCustomer(customerId: string, data: FacturapiCustomerData) {
+  return await facturapi.customers.update(customerId, data);
+}
+
+export async function getCustomer(facturapiCustomerId: string) {
+  return await facturapi.customers.retrieve(facturapiCustomerId);
+}
+
+
+export async function getAllCustomers() {
+  let allCustomers: any[] = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const res = await facturapi.customers.list({ page, limit: 100 });
+    allCustomers = allCustomers.concat(res.data);
+    page++;
+    hasMore = res.data.length > 0;
+  }
+
+  return allCustomers;
+}
+

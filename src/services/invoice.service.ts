@@ -88,6 +88,7 @@ export async function listInvoicesByVirwoUserId(virwoUserId: number) {
     return Invoice.findAll({ where: { customerId: customer.id } });
 }
 
+
 export async function updateInvoice(
     invoiceId: number,
     dto: UpdateInvoiceDto
@@ -170,7 +171,56 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
             console.log(`[IssueInvoice] Cliente Facturapi creado: ${facCust.id}`);
         } else {
             console.log(`[IssueInvoice] Cliente ya sincronizado: ${customer.facturapiCustomerId}`);
+            const facturapiAuthToken = process.env.FACTURAPI_KEY_TEST;
+
+            const payloadUpdate = {
+                legal_name: customer.name,
+                tax_id: customer.taxId,
+                tax_system: '601', // ⚠️ ajustalo si viene dinámico
+                email: customer.email,
+                phone: payload.Customer.phone || '',
+                default_invoice_use: payload.Customer.uso_cfdi,
+                address: {
+                    street: payload.Customer.address.street,
+                    exterior: String(payload.Customer.address.exterior_number),
+                    interior: String(payload.Customer.address.internal_number || ''),
+                    neighborhood: payload.Customer.address.municipality,
+                    city: payload.Customer.address.city,
+                    municipality: payload.Customer.address.city,
+                    zip: String(payload.Customer.address.zip_code),
+                    state: payload.Customer.address.state,
+                    country: payload.Customer.address.country
+                }
+            };
+
+            try {
+                const apiBaseUrl = process.env.URL_ENV;
+
+                const res = await fetch(`${apiBaseUrl}/api/facturapi/customers/${customer.facturapiCustomerId}`, {
+
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${facturapiAuthToken}`
+                    },
+                    body: JSON.stringify(payloadUpdate)
+                });
+
+                if (!res.ok) {
+                    const errorBody = await res.json();
+                    console.error('[IssueInvoice] ❌ Error en update vía endpoint:', errorBody);
+                    throw new Error('Falló actualización en Facturapi vía API interna');
+                }
+
+                const updated = await res.json();
+                console.log('[IssueInvoice] Cliente actualizado vía endpoint:', updated);
+
+            } catch (err: any) {
+                console.error('[IssueInvoice] ❌ Error usando endpoint de actualización:', err.message);
+                throw err;
+            }
         }
+
 
         // — 3) asegurar productos en tu catálogo local —
         for (const item of payload.Items) {
@@ -244,7 +294,7 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
             status: facInvoice.status,
             total: facInvoice.total
         }, { transaction: tx });
-        console.log(`[IssueInvoice] Factura local creada id=${inv.id}, total=${inv.total}`);
+        // console.log(`[IssueInvoice] Factura local creada id=${inv.id}, total=${inv.total}`);
 
         // TODO: 6) — guardar líneas —
         const lineItems: InvoiceItem[] = [];
@@ -289,12 +339,12 @@ export async function issueInvoiceHandler(payload: CreateInvoicePayload) {
             customerName: customer.name,
             customerEmail: customer.email,
             invoiceNumber: payload.InvoiceNumber,
-            ccEmail: payload.EmailAlternativo ||`eduardo.campuzano@virwo.com`, // opcional payload.EmailAlternativo
+            ccEmail: payload.EmailAlternativo || `eduardo.campuzano@virwo.com`, // opcional payload.EmailAlternativo
             pdfBuffer
         });
 
         // TODO: 9) — devolver resultado al front —
-        return { success: true, invoiceId: inv.id, ChargeIdOpenPay: payload.ChargeIdOpenPay, IdSubscription: payload.IdSuscription};
+        return { success: true, invoiceId: inv.id, ChargeIdOpenPay: payload.ChargeIdOpenPay, IdSubscription: payload.IdSuscription };
     });
 
 }
